@@ -1,0 +1,1 @@
+ALTER TABLE `chats` MODIFY COLUMN `user_id` varchar(36);

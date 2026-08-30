@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `platform` varchar(255) DEFAULT 'manual';
