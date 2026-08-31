@@ -29,6 +29,13 @@
       "when": 1788064021377,
       "tag": "0003_clear_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1788185556780,
+      "tag": "0004_add_image_url_to_messages",
+      "breakpoints": true
     }
   ]
 }

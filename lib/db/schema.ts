@@ -32,6 +32,7 @@ export const messages = mysqlTable("messages", {
     .references(() => chats.id),
   role: mysqlEnum("role", ["user", "assistant"]).notNull(),
   content: text("content").notNull(),
+  imageUrl: varchar("image_url", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

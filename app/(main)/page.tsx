@@ -16,7 +16,7 @@ export default function Home() {
       </div>
 
       <ChatInput
-        onCreateNewChat={async (message) => {
+        onCreateNewChat={async (message, imageUrl) => {
           const newChatId = crypto.randomUUID();
 
           const response = await fetch("/api/chat", {
@@ -25,6 +25,7 @@ export default function Home() {
             body: JSON.stringify({
               message,
               chatId: newChatId,
+              imageUrl,
             }),
           });
 
@@ -40,6 +41,7 @@ export default function Home() {
               chatId: newChatId,
               role: "user",
               content: message,
+              imageUrl: imageUrl ?? null,
               createdAt: new Date().toISOString(),
             },
             {

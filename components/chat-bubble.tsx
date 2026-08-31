@@ -2,6 +2,7 @@ import { MessageModel } from "@/lib/db/type";
 import { cn } from "@/lib/utils";
 import { Bot, CheckCheck, User } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import Image from "next/image";
 
 interface ChatBubbleProps {
   message: MessageModel;
@@ -33,15 +34,26 @@ export function ChatBubble({ message }: ChatBubbleProps) {
               : "bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100 rounded-bl-sm"
           )}
         >
+          {message.imageUrl && (
+            <div className="relative mb-2 h-48 w-48 overflow-hidden rounded-xl">
+              <Image
+                src={message.imageUrl}
+                alt="Gambar terlampir"
+                fill
+                className="object-cover"
+              />
+            </div>
+          )}
+
           {isAssistant ? (
             <div className="prose dark:prose-invert prose-sm max-w-none">
               <ReactMarkdown>
                 {message.content}
               </ReactMarkdown>
             </div>
-          ) : (
+          ) : message.content ? (
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
-          )}
+          ) : null}
         </div>
 
         {isAssistant && (

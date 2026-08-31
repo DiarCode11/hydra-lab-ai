@@ -5,10 +5,32 @@ import { chats, messages } from "../db/schema"
 import { randomUUID } from "crypto"
 import { asc, desc, eq } from "drizzle-orm"
 import OpenAI from "openai"
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
+import { imageUrlToDataUrl } from "../helpers/image-helper"
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
+
+async function toChatMessageParam(msg: {
+  role: "user" | "assistant"
+  content: string
+  imageUrl: string | null
+}): Promise<ChatCompletionMessageParam> {
+  if (msg.role === "user" && msg.imageUrl) {
+    const dataUrl = await imageUrlToDataUrl(msg.imageUrl)
+
+    return {
+      role: "user",
+      content: [
+        { type: "text", text: msg.content || "Tolong analisis gambar ini." },
+        { type: "image_url", image_url: { url: dataUrl } },
+      ],
+    }
+  }
+
+  return { role: msg.role, content: msg.content }
+}
 
 async function generateAssistantReply(chatId: string) {
   const conversation = await db
@@ -26,10 +48,7 @@ async function generateAssistantReply(chatId: string) {
         content:
           "Kamu adalah asisten AI yang membantu user di aplikasi chat. Jawab singkat, jelas, dan relevan.",
       },
-      ...conversation.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      })),
+      ...(await Promise.all(conversation.map(toChatMessageParam))),
     ],
   })
 
@@ -39,16 +58,21 @@ async function generateAssistantReply(chatId: string) {
   )
 }
 
-async function persistUserAndAssistantMessage(chatId: string, content: string) {
+async function persistUserAndAssistantMessage(
+  chatId: string,
+  content: string,
+  imageUrl?: string | null
+) {
   const cleanContent = content.trim()
 
-  if (!cleanContent) return null
+  if (!cleanContent && !imageUrl) return null
 
   await db.insert(messages).values({
     id: randomUUID(),
     chatId,
     role: "user",
     content: cleanContent,
+    imageUrl: imageUrl ?? null,
   })
 
   const assistantReply = await generateAssistantReply(chatId)
@@ -63,10 +87,10 @@ async function persistUserAndAssistantMessage(chatId: string, content: string) {
   return assistantReply
 }
 
-export async function createChat(message: string) {
+export async function createChat(message: string, imageUrl?: string | null) {
   const cleanMessage = message.trim()
 
-  if (!cleanMessage) {
+  if (!cleanMessage && !imageUrl) {
     return null
   }
 
@@ -74,22 +98,26 @@ export async function createChat(message: string) {
 
   await db.insert(chats).values({
     id: chatId,
-    title: cleanMessage.slice(0, 80),
+    title: cleanMessage.slice(0, 80) || "Gambar",
   })
 
-  await persistUserAndAssistantMessage(chatId, cleanMessage)
+  await persistUserAndAssistantMessage(chatId, cleanMessage, imageUrl)
 
   return chatId
 }
 
-export async function sendMessageToChat(chatId: string, message: string) {
+export async function sendMessageToChat(
+  chatId: string,
+  message: string,
+  imageUrl?: string | null
+) {
   const cleanMessage = message.trim()
 
-  if (!cleanMessage) {
+  if (!cleanMessage && !imageUrl) {
     return null
   }
 
-  return await persistUserAndAssistantMessage(chatId, cleanMessage)
+  return await persistUserAndAssistantMessage(chatId, cleanMessage, imageUrl)
 }
 
 export async function getMessage(chatId: string) {

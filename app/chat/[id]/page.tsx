@@ -22,6 +22,7 @@ export default function ChatPage() {
         role: message.role,
         content: message.content,
         chatId: message.chatId,
+        imageUrl: message.imageUrl ?? null,
         createdAt: message.createdAt ?? new Date(),
       } as MessageModel;
 
@@ -48,7 +49,7 @@ export default function ChatPage() {
 
       const mergedChats = [...data];
 
-      pendingMessages.forEach((message: Partial<MessageModel> & { role: "user" | "assistant"; content: string; chatId: string; createdAt?: string }) => {
+      pendingMessages.forEach((message: Partial<MessageModel> & { role: "user" | "assistant"; content: string; chatId: string; imageUrl?: string | null; createdAt?: string }) => {
         const alreadyExists = mergedChats.some(
           (item) => item.chatId === message.chatId && item.content === message.content && item.role === message.role
         );
@@ -59,12 +60,18 @@ export default function ChatPage() {
             chatId: message.chatId,
             role: message.role,
             content: message.content,
+            imageUrl: message.imageUrl ?? null,
             createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
           } as MessageModel);
         }
       });
 
-      setChats(mergedChats.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+      setChats(
+        mergedChats.sort(
+          (a, b) =>
+            new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime()
+        )
+      );
       sessionStorage.removeItem(pendingKey);
       setLoading(false);
     };
@@ -108,12 +115,13 @@ export default function ChatPage() {
         <ChatInput
           chatId={params.id}
           onThinkingChange={setIsThinking}
-          onAppendUserMessage={(content, chatId) =>
+          onAppendUserMessage={(content, chatId, imageUrl) =>
             appendMessage({
               id: `temp-user-${Date.now()}`,
               role: "user",
               content,
               chatId,
+              imageUrl: imageUrl ?? null,
               createdAt: new Date(),
             })
           }
