@@ -1,34 +1,103 @@
 "use server"
 
-import { redirect } from "next/navigation"
 import { db } from "../db"
 import { chats, messages } from "../db/schema"
 import { randomUUID } from "crypto"
-import { desc, eq } from "drizzle-orm"
+import { asc, desc, eq } from "drizzle-orm"
+import OpenAI from "openai"
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+})
+
+async function generateAssistantReply(chatId: string) {
+  const conversation = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.chatId, chatId))
+    .orderBy(asc(messages.createdAt))
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.7,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Kamu adalah asisten AI yang membantu user di aplikasi chat. Jawab singkat, jelas, dan relevan.",
+      },
+      ...conversation.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+    ],
+  })
+
+  return (
+    completion.choices[0]?.message?.content?.trim() ||
+    "Maaf, saya tidak bisa menjawab saat ini."
+  )
+}
+
+async function persistUserAndAssistantMessage(chatId: string, content: string) {
+  const cleanContent = content.trim()
+
+  if (!cleanContent) return null
+
+  await db.insert(messages).values({
+    id: randomUUID(),
+    chatId,
+    role: "user",
+    content: cleanContent,
+  })
+
+  const assistantReply = await generateAssistantReply(chatId)
+
+  await db.insert(messages).values({
+    id: randomUUID(),
+    chatId,
+    role: "assistant",
+    content: assistantReply,
+  })
+
+  return assistantReply
+}
 
 export async function createChat(message: string) {
-    const chatId = crypto.randomUUID()
+  const cleanMessage = message.trim()
 
-    await db.insert(chats).values({
-        id: chatId,
-        title: message
-    })
+  if (!cleanMessage) {
+    return null
+  }
 
-    await db.insert(messages).values({
-        id: randomUUID(),
-        chatId,
-        role: "user",
-        content: message,
-    });
+  const chatId = crypto.randomUUID()
 
-    redirect(`/chat/${chatId}`)
+  await db.insert(chats).values({
+    id: chatId,
+    title: cleanMessage.slice(0, 80),
+  })
+
+  await persistUserAndAssistantMessage(chatId, cleanMessage)
+
+  return chatId
+}
+
+export async function sendMessageToChat(chatId: string, message: string) {
+  const cleanMessage = message.trim()
+
+  if (!cleanMessage) {
+    return null
+  }
+
+  return await persistUserAndAssistantMessage(chatId, cleanMessage)
 }
 
 export async function getMessage(chatId: string) {
-    return await db
-        .select()
-        .from(messages)
-        .where(eq(messages.chatId, chatId))
+  return await db
+    .select()
+    .from(messages)
+    .where(eq(messages.chatId, chatId))
+    .orderBy(asc(messages.createdAt))
 }
 
 export async function getUserChats(userId: string | null) {
@@ -39,10 +108,17 @@ export async function getUserChats(userId: string | null) {
     .orderBy(desc(chats.createdAt));
 }
 
-export async function deleteAllChats(userId: string) {
-  await db.delete(chats).where(eq(chats.userId, userId));
+export async function deleteAllChats(userId: string | null) {
+  if (userId) {
+    await db.delete(chats).where(eq(chats.userId, userId));
+    return;
+  }
+
+  await db.delete(messages);
+  await db.delete(chats);
 }
 
 export async function deleteChat(chatId: string) {
+  await db.delete(messages).where(eq(messages.chatId, chatId));
   await db.delete(chats).where(eq(chats.id, chatId));
 }

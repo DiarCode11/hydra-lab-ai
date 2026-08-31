@@ -1,6 +1,7 @@
 import { MessageModel } from "@/lib/db/type";
 import { cn } from "@/lib/utils";
-import { Bot, User } from "lucide-react";
+import { Bot, CheckCheck, User } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 interface ChatBubbleProps {
   message: MessageModel;
@@ -8,6 +9,7 @@ interface ChatBubbleProps {
 
 export function ChatBubble({ message }: ChatBubbleProps) {
   const isUser = message.role === "user";
+  const isAssistant = message.role === "assistant";
 
   return (
     <div
@@ -22,15 +24,32 @@ export function ChatBubble({ message }: ChatBubbleProps) {
         </div>
       )}
 
-      <div
-        className={cn(
-          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm",
-          isUser
-            ? "bg-black text-white dark:bg-white dark:text-black rounded-br-sm"
-            : "bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100 rounded-bl-sm"
+      <div className="flex max-w-[75%] flex-col gap-1">
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm transition-all duration-500 ease-out animate-[fadeIn_0.35s_ease-out]",
+            isUser
+              ? "bg-black text-white dark:bg-white dark:text-black rounded-br-sm"
+              : "bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100 rounded-bl-sm"
+          )}
+        >
+          {isAssistant ? (
+            <div className="prose dark:prose-invert prose-sm max-w-none">
+              <ReactMarkdown>
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          )}
+        </div>
+
+        {isAssistant && (
+          <div className="flex items-center justify-end gap-1 text-[10px] text-neutral-400 animate-[slideUp_0.4s_ease-out]">
+            <CheckCheck className="h-3 w-3" />
+            <span>jawaban selesai</span>
+          </div>
         )}
-      >
-        <p className="whitespace-pre-wrap break-words">{message.content}</p>
       </div>
 
       {isUser && (

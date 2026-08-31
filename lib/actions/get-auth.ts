@@ -1,7 +1,5 @@
 "use server"
 
-"use server"
-
 import { cookies } from "next/headers"
 import { decode } from "../helpers/jwt-helper"
 
@@ -20,4 +18,10 @@ export async function GetSessionAction() {
     }
 
     return { success: true, user: result.data }
+}
+
+export async function LogoutAction() {
+    const cookieStore = await cookies()
+    cookieStore.delete("session")
+    return { success: true }
 }

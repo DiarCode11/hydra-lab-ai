@@ -1,13 +1,31 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { SendHorizonal, Paperclip, Plus } from "lucide-react";
-import { createChat } from "@/lib/actions/chat";
+import { SendHorizonal, Plus } from "lucide-react";
 
-export function ChatInput() {
+interface ChatInputProps {
+  chatId?: string | null;
+  onThinkingChange?: (thinking: boolean) => void;
+  onAppendUserMessage?: (content: string, chatId: string) => void;
+  onAppendAssistantMessage?: (content: string, chatId: string) => void;
+  onCreateNewChat?: (message: string) => Promise<void> | void;
+}
+
+export function ChatInput({
+  chatId,
+  onThinkingChange,
+  onAppendUserMessage,
+  onAppendAssistantMessage,
+  onCreateNewChat,
+}: ChatInputProps) {
+  const router = useRouter();
+  const params = useParams<{ id?: string }>();
+  const activeChatId = chatId ?? params?.id ?? null;
   const [message, setMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -28,18 +46,65 @@ export function ChatInput() {
   };
 
   const handleSend = async () => {
-    if (!message.trim()) return;
-    await createChat(message)
-    setMessage("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "40px";
+    const nextMessage = message.trim();
+
+    if (!nextMessage || isSending) return;
+
+    setIsSending(true);
+    onThinkingChange?.(true);
+
+    try {
+      let targetChatId = activeChatId;
+
+      if (!targetChatId) {
+        await onCreateNewChat?.(nextMessage);
+        setMessage("");
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "40px";
+        }
+        return;
+      }
+
+      if (targetChatId && onAppendUserMessage) {
+        onAppendUserMessage(nextMessage, targetChatId);
+      }
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: nextMessage,
+          chatId: targetChatId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Gagal mengirim pesan.");
+      }
+
+      if (data.assistantMessage && targetChatId && onAppendAssistantMessage) {
+        onAppendAssistantMessage(data.assistantMessage, targetChatId);
+      }
+
+      setMessage("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "40px";
+      }
+    } catch (error) {
+      console.error("Send chat error:", error);
+    } finally {
+      setIsSending(false);
+      onThinkingChange?.(false);
     }
   };
 
   return (
     <div className="w-full max-w-2xl">
       <div className="flex flex-col gap-2 rounded-3xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 p-3 shadow-sm focus-within:ring-1 focus-within:ring-neutral-400">
-        {/* Row atas: textarea full width */}
         <Textarea
           ref={textareaRef}
           value={message}
@@ -47,11 +112,12 @@ export function ChatInput() {
           onKeyDown={handleKeyDown}
           placeholder="Kirim pesan ke Hydra Lab AI..."
           rows={1}
-          className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto px-1 leading-relaxed"
+          disabled={isSending}
+          autoFocus
+          className="resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 overflow-y-auto px-1 leading-relaxed disabled:cursor-not-allowed"
           style={{ height: "40px", maxHeight: "200px" }}
         />
 
-        {/* Row bawah: tombol-tombol */}
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"
@@ -64,7 +130,7 @@ export function ChatInput() {
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={!message.trim()}
+            disabled={!message.trim() || isSending}
             className="shrink-0 rounded-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 disabled:opacity-40"
           >
             <SendHorizonal className="h-4 w-4" />

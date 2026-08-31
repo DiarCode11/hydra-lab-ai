@@ -1,22 +1,64 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { ChatInput } from "@/components/chat-input";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { MessageSquarePlus, PanelLeft, Paperclip, SendHorizonal, Trash2 } from "lucide-react";
-import Image from "next/image";
 
 export default function Home() {
-  return (
-      <main className="flex-1 w-full flex flex-col items-center justify-between py-8 px-16 bg-white dark:bg-black">
-        {/* Area pesan (kosong dulu, nanti diisi chat) */}
-        <div className="flex-1 w-full flex flex-col items-center gap-5 justify-center">
-          <h1 className="text-5xl font-bold">Hydra Lab AI</h1>
-          <p className="text-neutral-400 text-sm">
-            Mulai percakapan dengan mengetik pesan di bawah
-          </p>
-        </div>
+  const router = useRouter();
 
-        {/* Chat Input */}
-        <ChatInput />
-      </main>
+  return (
+    <main className="h-full w-full flex flex-col items-center justify-between py-8 px-16 bg-white dark:bg-black">
+      <div className="flex-1 w-full flex flex-col items-center gap-5 justify-center">
+        <h1 className="text-5xl font-bold">Hydra Lab AI</h1>
+        <p className="text-neutral-400 text-sm">
+          Mulai percakapan dengan mengetik pesan di bawah
+        </p>
+      </div>
+
+      <ChatInput
+        onCreateNewChat={async (message) => {
+          const newChatId = crypto.randomUUID();
+
+          const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message,
+              chatId: newChatId,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Gagal membuat chat baru.");
+          }
+
+          const pendingMessages = [
+            {
+              id: `pending-user-${newChatId}`,
+              chatId: newChatId,
+              role: "user",
+              content: message,
+              createdAt: new Date().toISOString(),
+            },
+            {
+              id: `pending-assistant-${newChatId}`,
+              chatId: newChatId,
+              role: "assistant",
+              content: data.assistantMessage,
+              createdAt: new Date(Date.now() + 1000).toISOString(),
+            },
+          ];
+
+          sessionStorage.setItem(
+            `pending-chat-${newChatId}`,
+            JSON.stringify(pendingMessages)
+          );
+
+          router.push(`/chat/${newChatId}`);
+        }}
+      />
+    </main>
   );
 }
