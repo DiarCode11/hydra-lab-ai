@@ -140,7 +140,7 @@ export default function HomeLayout({ children }: HomeLayoutInterface) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-dvh overflow-hidden">
       {isSidebarOpen && (
         <button
           type="button"
