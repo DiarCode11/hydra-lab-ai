@@ -6,16 +6,28 @@ import { Input } from "./ui/input"
 import { Label } from "./ui/label"
 import { LoginState, LoginAction } from "@/lib/actions/login"
 import { GoogleLoginAction } from "@/lib/actions/google-auth"
+
+interface LoginComponentProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
+}
 import { firebaseApp } from "@/lib/firebase/firebase"
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 
 const initialState: LoginState = { success: false }
 
-export default function LoginComponent() {
+export default function LoginComponent({
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: LoginComponentProps) {
   const [state, formAction, isPending] = useActionState(LoginAction, initialState)
-  const [open, setOpen] = useState<boolean>(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState<string | null>(null)
+  const open = controlledOpen ?? uncontrolledOpen
+  const setOpen = onOpenChange ?? setUncontrolledOpen
 
   useEffect(() => {
     console.log("state berubah:", state)
@@ -54,11 +66,13 @@ export default function LoginComponent() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        <div className="bg-neutral-200 text-black px-4 py-1 font-semibold rounded-md">
-          Login
-        </div>
-      </DialogTrigger>
+      {showTrigger && (
+        <DialogTrigger>
+          <div className="bg-neutral-200 text-black px-4 py-1 font-semibold rounded-md">
+            Login
+          </div>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Login</DialogTitle>

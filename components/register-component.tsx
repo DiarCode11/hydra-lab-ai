@@ -11,11 +11,23 @@ import { GoogleLoginAction } from "@/lib/actions/google-auth"
 
 const initialState: RegisterState = { success: false }
 
-export default function RegisterComponent() {
+interface RegisterComponentProps {
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+    showTrigger?: boolean;
+}
+
+export default function RegisterComponent({
+    open: controlledOpen,
+    onOpenChange,
+    showTrigger = true,
+}: RegisterComponentProps) {
     const [state, formAction, isPending] = useActionState(RegisterAction, initialState)
-    const [open, setOpen] = useState<boolean>(false)
+    const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
     const [googleError, setGoogleError] = useState<string | null>(null)
+    const open = controlledOpen ?? uncontrolledOpen
+    const setOpen = onOpenChange ?? setUncontrolledOpen
     
     useEffect(() => {
         console.log("state berubah:", state)
@@ -54,11 +66,13 @@ export default function RegisterComponent() {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger>
-                <div className="bg-neutral-200 text-black px-4 py-1 font-semibold rounded-md">
-                    Daftar
-                </div>
-            </DialogTrigger>
+            {showTrigger && (
+                <DialogTrigger>
+                    <div className="bg-neutral-200 text-black px-4 py-1 font-semibold rounded-md">
+                        Daftar
+                    </div>
+                </DialogTrigger>
+            )}
             <DialogContent>
                 <DialogHeader>
                 <DialogTitle>Daftar Akun</DialogTitle>

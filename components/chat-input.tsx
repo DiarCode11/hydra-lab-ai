@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SendHorizonal, Plus, X, LoaderCircle } from "lucide-react";
 import Image from "next/image";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import LoginComponent from "@/components/login-component";
+import RegisterComponent from "@/components/register-component";
+import { GetSessionAction } from "@/lib/actions/get-auth";
 
 interface ChatInputProps {
   chatId?: string | null;
@@ -33,6 +37,9 @@ export function ChatInput({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
+  const [showRegisterDialog, setShowRegisterDialog] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +114,12 @@ export function ChatInput({
     const nextImageUrl = imageUrl;
 
     if ((!nextMessage && !nextImageUrl) || isSending || isUploading) return;
+
+    const session = await GetSessionAction();
+    if (!session.user) {
+      setShowLoginPrompt(true);
+      return;
+    }
 
     setIsSending(true);
     onThinkingChange?.(true);
@@ -234,6 +247,52 @@ export function ChatInput({
           </Button>
         </div>
       </div>
+
+      <Dialog open={showLoginPrompt} onOpenChange={setShowLoginPrompt}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Login diperlukan</DialogTitle>
+            <DialogDescription>
+              Silakan login atau daftar terlebih dahulu untuk mengirim pesan dan menyimpan percakapan Anda.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={() => {
+                setShowLoginPrompt(false);
+                setShowLoginDialog(true);
+              }}
+            >
+              Login
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setShowLoginPrompt(false);
+                setShowRegisterDialog(true);
+              }}
+            >
+              Daftar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <LoginComponent
+        open={showLoginDialog}
+        onOpenChange={setShowLoginDialog}
+        showTrigger={false}
+      />
+
+      <RegisterComponent
+        open={showRegisterDialog}
+        onOpenChange={setShowRegisterDialog}
+        showTrigger={false}
+      />
 
       <p className="text-xs text-center text-neutral-400 mt-2">
         Hydra Lab AI dapat membuat kesalahan. Periksa info penting.

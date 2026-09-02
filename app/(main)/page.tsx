@@ -7,10 +7,10 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <main className="h-full w-full flex flex-col items-center justify-between py-8 px-16 bg-white dark:bg-black">
+    <main className="h-full w-full flex flex-col items-center justify-between px-4 md:py-8 md:px-16 bg-white dark:bg-black">
       <div className="flex-1 w-full flex flex-col items-center gap-5 justify-center">
-        <h1 className="text-5xl font-bold">Hydra Lab AI</h1>
-        <p className="text-neutral-400 text-sm">
+        <h1 className="text-5xl font-bold text-center">Hydra Lab AI</h1>
+        <p className="text-neutral-400 text-sm text-center">
           Mulai percakapan dengan mengetik pesan di bawah
         </p>
       </div>

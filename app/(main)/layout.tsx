@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { MessageSquarePlus, PanelLeft, Trash2, MessageSquare } from "lucide-react";
+import { Menu, MessageSquarePlus, PanelLeft, Trash2, MessageSquare, X } from "lucide-react";
 import { useChatListStore } from "@/lib/store/chat-list-store";
 import { getUserChats, deleteAllChats } from "@/lib/actions/chat";
 import LoginComponent from "@/components/login-component";
@@ -26,7 +26,15 @@ interface HomeLayoutInterface {
   children: React.ReactNode;
 }
 
-function ChatHistoryLink({ chatId, title }: { chatId: string; title?: string | null }) {
+function ChatHistoryLink({
+  chatId,
+  title,
+  onNavigate,
+}: {
+  chatId: string;
+  title?: string | null;
+  onNavigate: () => void;
+}) {
   const pathname = usePathname();
   const isActive = pathname === `/chat/${chatId}`;
 
@@ -34,6 +42,7 @@ function ChatHistoryLink({ chatId, title }: { chatId: string; title?: string | n
     <Link
       key={chatId}
       href={`/chat/${chatId}`}
+      onClick={onNavigate}
       className={`${isActive ? "bg-neutral-900 text-white dark:bg-neutral-800" : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-900"} flex items-center gap-2 text-sm rounded-lg px-3 py-2 truncate`}
     >
       <MessageSquare className="h-4 w-4 shrink-0" />
@@ -41,9 +50,6 @@ function ChatHistoryLink({ chatId, title }: { chatId: string; title?: string | n
     </Link>
   );
 }
-
-// Sementara hardcode dulu sebelum ada auth beneran
-const CURRENT_USER_ID = null;
 
 interface SessionInterface {
   id: string,
@@ -62,6 +68,7 @@ export default function HomeLayout({ children }: HomeLayoutInterface) {
   const setLoadingList = useChatListStore((state) => state.setLoadingList);
 
   const [authData, setAuthData] = useState<SessionInterface | null | false>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
     const auth = async () => {
@@ -73,24 +80,29 @@ export default function HomeLayout({ children }: HomeLayoutInterface) {
       }
     }
     const load = async () => {
+      const session = await GetSessionAction();
+      const user = session.user && typeof session.user !== "string" ? session.user : null;
+
+      setAuthData(user as SessionInterface | false | null);
       setLoadingList(true);
-      const data = await getUserChats(CURRENT_USER_ID);
+      const data = await getUserChats();
       setChatList(data);
       setLoadingList(false);
     };
 
-    load();
-    auth()
+    load()
   }, []);
 
   const handleNewChat = () => {
+    setIsSidebarOpen(false);
     router.push("/");
   };
 
   const handleDeleteAll = async () => {
-    await deleteAllChats(CURRENT_USER_ID);
+    await deleteAllChats();
     clearChatList();
     setAuthData(false);
+    setIsSidebarOpen(false);
     router.push("/");
   };
 
@@ -129,10 +141,30 @@ export default function HomeLayout({ children }: HomeLayoutInterface) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <aside className="w-[300px] flex flex-col border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black">
+      {isSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Tutup menu"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 flex w-[min(300px,85vw)] flex-col border-r border-neutral-200 bg-white transition-transform duration-200 dark:border-neutral-800 dark:bg-black md:static md:z-auto md:flex md:w-75 md:translate-x-0 md:transition-none`}
+      >
         <div className="flex justify-between items-center p-5 pb-0">
           <h1 className="text-lg font-semibold">Hydra Lab AI</h1>
-          <PanelLeft className="cursor-pointer" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="Tutup sidebar"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            <X />
+          </Button>
+          <PanelLeft className="hidden cursor-pointer md:block" />
         </div>
 
         <div className="flex flex-col gap-2 my-4 px-5">
@@ -167,7 +199,12 @@ export default function HomeLayout({ children }: HomeLayoutInterface) {
           ) : (
             <div className="mt-2 flex flex-col gap-1">
               {chatList.map((chat) => (
-                <ChatHistoryLink key={chat.id} chatId={chat.id} title={chat.title} />
+                <ChatHistoryLink
+                  key={chat.id}
+                  chatId={chat.id}
+                  title={chat.title}
+                  onNavigate={() => setIsSidebarOpen(false)}
+                />
               ))}
             </div>
           )}
@@ -175,45 +212,56 @@ export default function HomeLayout({ children }: HomeLayoutInterface) {
       </aside>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <nav className="shrink-0 flex justify-end gap-x-2 bg-neutral-900/10 py-2 px-4">
-          {authData ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger 
-                nativeButton={false}
-                render={
-                  <Avatar className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <AvatarImage src={authData.avatar_url} />
-                    <AvatarFallback>{getInitials(authData.name)}</AvatarFallback>
-                  </Avatar>
-              } />
-              <DropdownMenuContent className="w-50" align="end">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>
-                    <div>
-                      <span>{authData.name}</span>
-                      <p>{authData.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className={"text-red-400 hover:text-red-500 hover:bg-red-300 cursor-pointer"}
-                    onClick={async (event) => {
-                      event.preventDefault();
-                      await handleLogout();
-                    }}
-                  >
-                    Log out
-                    <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <>
-              <LoginComponent />
-              <RegisterComponent />
-            </>
-          )}
+        <nav className="shrink-0 flex items-center justify-between gap-x-2 bg-neutral-900/10 py-2 px-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="Buka menu"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <Menu />
+          </Button>
+          <div className="flex gap-x-2 flex-1 justify-end">
+            {authData ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger 
+                  nativeButton={false}
+                  render={
+                    <Avatar className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <AvatarImage src={authData.avatar_url} />
+                      <AvatarFallback>{getInitials(authData.name)}</AvatarFallback>
+                    </Avatar>
+                } />
+                <DropdownMenuContent className="w-50" align="end">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                      <div>
+                        <span>{authData.name}</span>
+                        <p>{authData.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className={"text-red-400 hover:text-red-500 hover:bg-red-300 cursor-pointer"}
+                      onClick={async (event) => {
+                        event.preventDefault();
+                        await handleLogout();
+                      }}
+                    >
+                      Log out
+                      <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <LoginComponent />
+                <RegisterComponent />
+              </>
+            )}
+          </div>
         </nav>
 
         <div className="min-h-0 flex-1 overflow-hidden">{children}</div>

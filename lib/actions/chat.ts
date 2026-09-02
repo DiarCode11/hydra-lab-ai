@@ -3,10 +3,11 @@
 import { db } from "../db"
 import { chats, messages } from "../db/schema"
 import { randomUUID } from "crypto"
-import { asc, desc, eq } from "drizzle-orm"
+import { and, asc, desc, eq, inArray } from "drizzle-orm"
 import OpenAI from "openai"
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions"
 import { imageUrlToDataUrl } from "../helpers/image-helper"
+import { getSessionUserId } from "./get-auth"
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -94,10 +95,14 @@ export async function createChat(message: string, imageUrl?: string | null) {
     return null
   }
 
+  const userId = await getSessionUserId()
+  if (!userId) return null
+
   const chatId = crypto.randomUUID()
 
   await db.insert(chats).values({
     id: chatId,
+    userId,
     title: cleanMessage.slice(0, 80) || "Gambar",
   })
 
@@ -117,10 +122,32 @@ export async function sendMessageToChat(
     return null
   }
 
+  const userId = await getSessionUserId()
+  if (!userId) return null
+
+  const ownedChat = await db
+    .select({ id: chats.id })
+    .from(chats)
+    .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
+    .limit(1)
+
+  if (ownedChat.length === 0) return null
+
   return await persistUserAndAssistantMessage(chatId, cleanMessage, imageUrl)
 }
 
 export async function getMessage(chatId: string) {
+  const userId = await getSessionUserId()
+  if (!userId) return []
+
+  const ownedChat = await db
+    .select({ id: chats.id })
+    .from(chats)
+    .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
+    .limit(1)
+
+  if (ownedChat.length === 0) return []
+
   return await db
     .select()
     .from(messages)
@@ -128,22 +155,30 @@ export async function getMessage(chatId: string) {
     .orderBy(asc(messages.createdAt))
 }
 
-export async function getUserChats(userId: string | null) {
+export async function getUserChats() {
+  const userId = await getSessionUserId()
+  if (!userId) return []
+
   return await db
     .select()
     .from(chats)
-    // .where(eq(chats.userId, userId))
+    .where(eq(chats.userId, userId))
     .orderBy(desc(chats.createdAt));
 }
 
-export async function deleteAllChats(userId: string | null) {
-  if (userId) {
-    await db.delete(chats).where(eq(chats.userId, userId));
-    return;
-  }
+export async function deleteAllChats() {
+  const userId = await getSessionUserId()
+  if (!userId) return;
 
-  await db.delete(messages);
-  await db.delete(chats);
+  const userChats = await db
+    .select({ id: chats.id })
+    .from(chats)
+    .where(eq(chats.userId, userId));
+
+  if (userChats.length === 0) return;
+
+  await db.delete(messages).where(inArray(messages.chatId, userChats.map((chat) => chat.id)));
+  await db.delete(chats).where(eq(chats.userId, userId));
 }
 
 export async function deleteChat(chatId: string) {

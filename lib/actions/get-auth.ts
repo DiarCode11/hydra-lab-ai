@@ -20,6 +20,16 @@ export async function GetSessionAction() {
     return { success: true, user: result.data }
 }
 
+export async function getSessionUserId() {
+    const session = await GetSessionAction()
+
+    if (!session.user || typeof session.user === "string") {
+        return null
+    }
+
+    return typeof session.user.id === "string" ? session.user.id : null
+}
+
 export async function LogoutAction() {
     const cookieStore = await cookies()
     cookieStore.delete("session")

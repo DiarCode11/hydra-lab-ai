@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { chats, messages } from "@/lib/db/schema";
 import { randomUUID } from "crypto";
 import { imageUrlToDataUrl } from "@/lib/helpers/image-helper";
+import { getSessionUserId } from "@/lib/actions/get-auth";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -31,6 +32,14 @@ async function toChatMessageParam(
 
 export async function POST(request: Request) {
   try {
+    const userId = await getSessionUserId();
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Silakan login terlebih dahulu." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const rawMessage = typeof body?.message === "string" ? body.message.trim() : "";
     const chatId = typeof body?.chatId === "string" && body.chatId.trim() ? body.chatId.trim() : null;
@@ -56,13 +65,29 @@ export async function POST(request: Request) {
       ? await db
           .select({ id: chats.id })
           .from(chats)
-          .where(eq(chats.id, finalChatId))
+          .where(and(eq(chats.id, finalChatId), eq(chats.userId, userId)))
           .limit(1)
       : [];
+
+    if (chatId && chatExists.length === 0) {
+      const existingChat = await db
+        .select({ id: chats.id })
+        .from(chats)
+        .where(eq(chats.id, finalChatId))
+        .limit(1);
+
+      if (existingChat.length > 0) {
+        return NextResponse.json(
+          { success: false, error: "Anda tidak memiliki akses ke chat ini." },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!chatId || chatExists.length === 0) {
       await db.insert(chats).values({
         id: finalChatId,
+        userId,
         title: rawMessage.slice(0, 80) || "Gambar",
       });
     }
