@@ -26,8 +26,9 @@ export async function imageUrlToDataUrl(imageUrl: string): Promise<string> {
   const extension = path.extname(imageUrl).replace(".", "").toLowerCase();
   const mimeType = MIME_BY_EXTENSION[extension] || "application/octet-stream";
 
-  // imageUrl berbentuk "/uploads/xxx.png", map ke folder public/uploads
-  const filePath = path.join(process.cwd(), "public", imageUrl);
+  const filename = path.basename(imageUrl);
+  const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), "storage", "uploads");
+  const filePath = path.join(uploadDir, filename);
 
   const buffer = await readFile(filePath);
   const base64 = buffer.toString("base64");
