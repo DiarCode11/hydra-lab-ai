@@ -42,6 +42,8 @@ ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+ENV OPENAI_API_KEY=dummy-build-key
+
 RUN bun run build
 
 #################################
