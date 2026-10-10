@@ -1,0 +1,30 @@
+node_modules
+.next
+out
+build
+coverage
+
+# env files - inject at runtime, never bake into image
+.env
+.env*
+!.env.example
+
+# uploads (should be a mounted volume, not part of the image)
+public/uploads
+storage
+
+# git
+.git
+.gitignore
+
+# ide
+.vscode
+.kiro
+
+# misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+README.md
