@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # NEXT_PUBLIC_* vars are baked in at build time by Next.js.
-        # Pulled from your local .env via docker-compose's automatic env substitution.
         NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY}
         NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
         NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
@@ -17,38 +15,13 @@ services:
     ports:
       - "3000:3000"
     env_file:
-      # secrets (DATABASE_URL, JWT_SECRET, OPENAI_API_KEY, FIREBASE_PRIVATE_KEY, ...)
-      # are only injected at container runtime, never baked into the image.
       - .env
     environment:
       UPLOAD_DIR: /app/storage/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - uploads:/app/storage/uploads
-    depends_on:
-      db:
-        condition: service_healthy
-        required: false
-
-  db:
-    image: mysql:8.4
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: db_hydra_lab
-      MYSQL_USER: ${DB_USER:-hydra}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-changeme}
-    ports:
-      - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles:
-      - with-db
 
 volumes:
   uploads:
-  db_data:
